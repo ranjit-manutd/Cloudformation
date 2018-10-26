@@ -1,0 +1,95 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deploy The Basic CloudTrail Resources required to monitor the account
+Parameters:
+
+  pLoggingBucketName:
+    Description: Name of the Bucket to Create for CloudTrail Logs
+    Type: String
+  
+  pCreateBucket:
+    Type: String
+    Description: Boolean to create bucket or use existing one
+    AllowedValues:
+      - true
+      - false
+  
+  
+Conditions:
+  CreateBucket: !Equals [!Ref 'pCreateBucket', 'true']
+  
+
+Resources:
+
+  LoggingS3Bucket:
+    DeletionPolicy: Retain
+    Condition: CreateBucket
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: LogDeliveryWrite
+      BucketName: !Ref 'pLoggingBucketName'
+      VersioningConfiguration:
+        Status: Enabled
+
+  LoggingBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    # Condition: CreateBucket
+    Properties:
+      Bucket: !Ref 'pLoggingBucketName'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Sid: AWSCloudTrailAclCheck
+          Effect: Allow
+          Principal:
+            Service: cloudtrail.amazonaws.com
+          Action: s3:GetBucketAcl
+          Resource: !Sub "arn:aws:s3:::${pLoggingBucketName}"
+        - Sid: AWSCloudTrailWrite
+          Effect: Allow
+          Principal:
+            Service: cloudtrail.amazonaws.com
+          Action: s3:PutObject
+          Resource: !Sub "arn:aws:s3:::${pLoggingBucketName}/AWSLogs/*"
+          Condition:
+            StringEquals:
+              s3:x-amz-acl: bucket-owner-full-control
+        - Sid: DenyDelete
+          Effect: Deny
+          Principal: "*"
+          Action: 
+            - s3:Delete*
+            - s3:PutBucketPolicy
+          Resource: 
+            - !Sub "arn:aws:s3:::${pLoggingBucketName}"
+            - !Sub "arn:aws:s3:::${pLoggingBucketName}/*"
+
+
+
+  
+  # And Define the CloudTrail. Make it Global and for all regions
+  CloudTrail:
+    DependsOn: 
+    - LoggingBucketPolicy
+    # - CloudTrailTopicPolicy
+    # - Fn::If:
+    #     - CreateTopic
+    #     - CloudTrailTopicPolicy
+    #     - !Ref AWS::NoValue    
+    Type: AWS::CloudTrail::Trail
+    Properties:
+      S3BucketName: !Ref 'pLoggingBucketName'
+      IsLogging: true
+      EnableLogFileValidation: true
+      IncludeGlobalServiceEvents: true
+      IsMultiRegionTrail: true
+      
+
+
+Outputs:
+    
+  LogBucket: 
+    Value: !Ref pLoggingBucketName
+    Description: Bucket Name where CloudTrail and other Logs can be sent. 
+  
+  TemplateVersion:
+    Value: 1.0.0
