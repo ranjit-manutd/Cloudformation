@@ -1,0 +1,99 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "AWS CloudFormation Template for the AWS S3 Bucket Creation with versioning , LifecycleRule and CrossRegion Replication",
+  "Parameters": {
+  "AccessControl": {
+      "Type": "String",
+      "Description": "Default permissions for the bucket",
+      "AllowedValues": [ "Private", "PublicRead", "PublicReadWrite", "AuthenticatedRead", "LogDeliveryWrite", "BucketOwnerRead", "BucketOwnerFullControl" ],
+      "Default": "Private"
+    },
+   "SourceS3BucketName": {
+      "Type": "String",
+      "Description": "Enter Name of the Source S3 Bucket"
+           
+    }
+    
+  },
+  "Resources": {
+  
+    "S3Bucket" : {
+      "Type": "AWS::S3::Bucket",
+      "Properties": { "AccessControl": { "Ref": "AccessControl" },
+      "BucketName" : { "Ref": "SourceS3BucketName" },
+       "LifecycleConfiguration" : {
+      
+
+          "Rules" : [ {
+            
+            "NoncurrentVersionTransitions" : [
+            {
+              "StorageClass" : "GLACIER",
+              "TransitionInDays" : 30
+            }],
+
+            "Transitions" : [ 
+              {
+              "StorageClass" : "GLACIER",
+              "TransitionInDays" : 30
+             }],
+
+            "ExpirationInDays" : 90,
+            "Id": "LifecycleRule",
+            "NoncurrentVersionExpirationInDays": 90,
+            "Status" : "Enabled"
+          } ] 
+        },
+         "VersioningConfiguration": {
+      "Status": "Enabled"
+    }
+  }
+    
+  },
+  
+    "S3BucketPolicy" : {
+  "Type" : "AWS::S3::BucketPolicy",
+  "Properties" : {
+    "Bucket" : {"Ref": "S3Bucket"},
+
+    "PolicyDocument": {
+      "Statement": [
+        {
+            "Sid": "Stmt1488809376000",
+            "Effect": "Allow",
+      "Principal": {
+                   "Service": [ "s3.amazonaws.com" ]
+                },
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:ListBucket",
+                "s3:ReplicateObject"
+               
+            ],
+
+            
+    "Resource": [
+                { "Fn::Join": [ "", [ "arn:aws:s3:::", { "Ref": "S3Bucket" } ] ] },
+                { "Fn::Join": [ "", [ "arn:aws:s3:::", { "Ref": "S3Bucket" }, "/*" ] ] }
+              ]
+               }
+            ]
+        }
+      }    
+        
+    }
+  
+    },
+      
+  "Outputs" : {
+    "Region": {
+      "Value": { "Ref": "AWS::Region" }
+    },
+   
+  "SourceBucketName": {
+      "Value": { "Ref": "S3Bucket" }
+    }
+
+  }
+}
