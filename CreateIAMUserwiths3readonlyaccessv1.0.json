@@ -1,0 +1,66 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	"Description": "AWS CloudFormation Template for the creating IAMUser with AWS S3 Bucket Readonly access",
+	"Parameters": {
+	"Username": {
+			"Type": "String",
+			"Description": "IAM User Name"
+		},
+		"Password": {
+			"NoEcho": "true",
+			"Description": "IAM user's console password as per IAM password policy, Usermust change the password after Login",
+			"Type": "String"
+		}
+		},
+		"Resources": {
+			"User": {
+				"Type": "AWS::IAM::User",
+				
+				"Properties": {
+				"UserName": {"Ref": "Username"},
+					"Path": "/",
+					"LoginProfile": {
+						
+						"Password": {"Ref": "Password"}
+					}
+				}
+			},
+    "ReadPolicy" : {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": "s3_read_only_policy",
+        "PolicyDocument": {
+          "Version" : "2012-10-17",
+          "Statement": [
+            {
+              "Effect" : "Allow",
+              "Action":[
+        	
+				"s3:List*",
+                "s3:GetBucketLocation",
+                "s3:GetBucketPolicy",
+                "s3:GetLifecycleConfiguration"
+                
+              ],
+              "Resource": "*"
+            }
+          ]
+        },
+        "Users" : [
+          { "Ref" : "User" }
+        ]
+      }
+    }
+},
+
+  "Outputs" : {
+    "User" : {
+      "Value" : { "Ref" : "User" }
+    },
+
+    "ConsoleAccess" : {
+      "Value" : { "Fn::Join" : [ "", [ "https://", 
+        { "Ref" : "AWS::AccountId" }, ".signin.aws.amazon.com/console" ] ] }
+    }
+  }
+}
